@@ -94,3 +94,12 @@
 			reg = <0>;
 	};
 };
+
+&mmc0 {
+	status = "okay";
+	bus-width = <4>;
+//	mmc0 {
+//		#address-cells = <1>;
+//		#size-cells = <0>;
+//	};
+};
