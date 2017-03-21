@@ -65,6 +65,7 @@ obj-$(CONFIG_MMC_SDHCI_SPEAR)		+= spear_sdhci.o
 obj-$(CONFIG_MMC_SDHCI_TEGRA)		+= tegra_mmc.o
 obj-$(CONFIG_MMC_SDHCI_XENON)		+= xenon_sdhci.o
 obj-$(CONFIG_MMC_SDHCI_ZYNQ)		+= zynq_sdhci.o
+obj-$(CONFIG_MMC_STM32)			+= stm32_mmc.o
 
 obj-$(CONFIG_MMC_SUNXI)			+= sunxi_mmc.o
 obj-$(CONFIG_MMC_UNIPHIER)		+= uniphier-sd.o

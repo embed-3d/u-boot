@@ -324,6 +324,12 @@ config MMC_SUNXI
 	  This selects support for the SD/MMC Host Controller on
 	  Allwinner sunxi SoCs.
 
+config MMC_STM32
+	bool "ST STM32 on-chip controller support"
+	depends on STM32 && DM_MMC && DM_MMC_OPS && BLK
+	help
+	  Support for ST STM32 SDIO controller
+
 endif
 
 endmenu
