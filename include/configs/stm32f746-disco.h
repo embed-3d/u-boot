@@ -45,6 +45,18 @@
 #define CONFIG_DW_ALTDESCRIPTOR
 #define CONFIG_MII
 #define CONFIG_PHY_SMSC
+/*
+#define CONFIG_MMC
+#define CONFIG_GENERIC_MMC
+#define CONFIG_DOS_PARTITION
+#define CONFIG_CMD_FAT
+*/
+#define CONFIG_CMD_MMC
+#define CONFIG_SUPPORT_VFAT
+#define CONFIG_CMD_EXT2
+#define CONFIG_CMD_EXT4
+#define HAVE_BLOCK_DEVICE /* Needed for partition commands */
+#define CONFIG_SUPPORT_EMMC_BOOT
 
 #define CONFIG_STM32_HSE_HZ		25000000
 #define CONFIG_SYS_CLK_FREQ		200000000 /* 200 MHz */
