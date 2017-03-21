@@ -269,6 +269,12 @@ void clock_setup(int peripheral)
 	case QSPI_CLOCK_CFG:
 		setbits_le32(&STM32_RCC->ahb3enr, RCC_AHB3ENR_QSPI_EN);
 		break;
+	case MMC_CLOCK_CFG:
+		setbits_le32(&STM32_RCC->apb2enr, RCC_APB2ENR_SDMMC1_EN);
+		break;
+	case DMA2_CLOCK_CFG:
+		setbits_le32(&STM32_RCC->ahb1enr, RCC_APB2ENR_DMA2_EN);
+		break;
 	default:
 		break;
 	}

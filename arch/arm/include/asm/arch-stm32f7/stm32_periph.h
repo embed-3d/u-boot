@@ -39,6 +39,8 @@ enum periph_clock {
 	FMC_CLOCK_CFG,
 	STMMAC_CLOCK_CFG,
 	QSPI_CLOCK_CFG,
+	MMC_CLOCK_CFG,
+	DMA2_CLOCK_CFG,
 };
 
 #endif /* __ASM_ARM_ARCH_PERIPH_H */
