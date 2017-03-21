@@ -27,6 +27,14 @@ const struct stm32_gpio_ctl gpio_ctl_gpout = {
 	.af = STM32_GPIO_AF0
 };
 
+const struct stm32_gpio_ctl gpio_ctl_gpin = {
+	.mode = STM32_GPIO_MODE_IN,
+	.otype = STM32_GPIO_OTYPE_PP,
+	.speed = STM32_GPIO_SPEED_50M,
+	.pupd = STM32_GPIO_PUPD_NO,
+	.af = STM32_GPIO_AF0
+};
+
 const struct stm32_gpio_ctl gpio_ctl_usart = {
 	.mode = STM32_GPIO_MODE_AF,
 	.otype = STM32_GPIO_OTYPE_PP,
@@ -380,6 +388,55 @@ static int qspi_setup(void)
 }
 #endif
 
+#ifdef CONFIG_MMC_STM32
+const struct stm32_gpio_ctl gpio_ctl_mmc = {
+	.mode = STM32_GPIO_MODE_AF,
+	.otype = STM32_GPIO_OTYPE_PP,
+	.speed = STM32_GPIO_SPEED_50M,
+	.pupd = STM32_GPIO_PUPD_NO,
+	.af = STM32_GPIO_AF12
+};
+
+static const struct stm32_gpio_dsc mmc_gpio[] = {
+	{STM32_GPIO_PORT_C, STM32_GPIO_PIN_8},  /* SDMMC_D0 */
+	{STM32_GPIO_PORT_C, STM32_GPIO_PIN_9},  /* SDMMC_D1 */
+	{STM32_GPIO_PORT_C, STM32_GPIO_PIN_10}, /* SDMMC_D2 */
+	{STM32_GPIO_PORT_C, STM32_GPIO_PIN_11},	/* SDMMC_D3 */
+	{STM32_GPIO_PORT_C, STM32_GPIO_PIN_12},	/* SDMMC_CK */
+	{STM32_GPIO_PORT_D, STM32_GPIO_PIN_2},  /* SDMMC_CMD */
+};
+
+static const struct stm32_gpio_dsc sd_gpio[] = {
+	{STM32_GPIO_PORT_C, STM32_GPIO_PIN_13},	/* MicroSDcard_detect */
+};
+
+static int mmc_setup(void)
+{
+	int res = 0;
+	int i;
+
+	clock_setup(GPIO_C_CLOCK_CFG);
+	clock_setup(GPIO_D_CLOCK_CFG);
+
+	for (i = 0; i < ARRAY_SIZE(mmc_gpio); i++) {
+		res = stm32_gpio_config(&mmc_gpio[i], &gpio_ctl_mmc);
+		if (res)
+			goto out;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(sd_gpio); i++) {
+		res = stm32_gpio_config(&sd_gpio[i], &gpio_ctl_gpin);
+		if (res)
+			goto out;
+	}
+
+	clock_setup(MMC_CLOCK_CFG);
+	clock_setup(DMA2_CLOCK_CFG);
+out:
+	return res;
+}
+#endif
+
 u32 get_board_rev(void)
 {
 	return 0;
@@ -403,6 +460,12 @@ int board_early_init_f(void)
 #ifdef CONFIG_STM32_QSPI
 	res = qspi_setup();
 	if (res)
+		return res;
+#endif
+
+#ifdef CONFIG_MMC_STM32
+	res = mmc_setup();
+	if(res)
 		return res;
 #endif
 
