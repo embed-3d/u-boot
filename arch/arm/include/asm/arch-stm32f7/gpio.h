@@ -109,5 +109,5 @@ static inline unsigned stm32_gpio_to_pin(unsigned gpio)
 int stm32_gpio_config(const struct stm32_gpio_dsc *gpio_dsc,
 		const struct stm32_gpio_ctl *gpio_ctl);
 int stm32_gpout_set(const struct stm32_gpio_dsc *gpio_dsc, int state);
-
+int gpio_get_value(unsigned gpio);
 #endif /* _STM32_GPIO_H_ */
