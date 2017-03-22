@@ -86,8 +86,7 @@ static int mmc_trans_data(struct udevice *dev, struct mmc_data *data, ushort cmx
 	int ret = 0;
 	u32 error_flags;
 	const int reading = (data->flags & MMC_DATA_READ);
-	debug("START DATA TRANSFER\n");
-	debug("CMD: %d\n",cmx);
+	debug("START DATA TRANSFER for CMD %d\n",cmx);
 
 #ifdef SDMMC_DMA
 	int timeout = 10;
@@ -146,85 +145,11 @@ static int mmc_trans_data(struct udevice *dev, struct mmc_data *data, ushort cmx
 	for(int i = 0; i < ((data->blocksize * data->blocks) >> 2); i++){
 		debug("data[%d] from card: %08x\n",i,data->dest[i]);
 	}
-#else
-	u32 status_bit;
-	if(cmx == MMC_CMD_READ_MULTIPLE_BLOCK){
-		if (reading){
-			error_flags = STM32_SDIO_RXOVERR | STM32_SDIO_DCRCFAIL | \
-					STM32_SDIO_DTIMEOUT | STM32_SDIO_DATAEND ;
-			status_bit = STM32_SDIO_RXFIFOHF;
-		} else {
-			status_bit = STM32_SDIO_TXDAVL;
-		}
-	} else if (cmx == MMC_CMD_READ_SINGLE_BLOCK){
-		if (reading){
-			error_flags = STM32_SDIO_RXOVERR | STM32_SDIO_DCRCFAIL | \
-				STM32_SDIO_DTIMEOUT | STM32_SDIO_DBCKEND ;
-			//status_bit = STM32_SDIO_RXDAVL;
-			status_bit = STM32_SDIO_RXFIFOHF  ;
-		} else {
-			status_bit = STM32_SDIO_TXDAVL;
-		}
-	} else {
-		if (reading){
-			error_flags = STM32_SDIO_RXOVERR | STM32_SDIO_DCRCFAIL | \
-				STM32_SDIO_DTIMEOUT | STM32_SDIO_DBCKEND ;
-			status_bit = STM32_SDIO_RXDAVL ;
-		} else {
-			status_bit = STM32_SDIO_TXDAVL;
-			error_flags = STM32_SDIO_RXOVERR | STM32_SDIO_DCRCFAIL | \
-				STM32_SDIO_DTIMEOUT | STM32_SDIO_DBCKEND ;
-		}
-	}
-
-
-	unsigned i;
-	unsigned *buff = (unsigned int *)(reading ? data->dest : data->src);
-	//	u32 data_buffer;
-	unsigned byte_cnt = data->blocksize * data->blocks;
-	unsigned timeout_usecs = (byte_cnt >> 8) * 1000;
-	//	unsigned timeout_usecs = 20;
-	//	unsigned timeout = 0;
-	debug("Timeout in usecs: %d\n",timeout_usecs);
-	debug("Planned Loops: %d\n",byte_cnt >> 2);
-	debug("Amount of Blocks: %d\n",data->blocks);
-	debug("Amount of Bytes: %d\n",byte_cnt);
-
-
-	for (i = 0; i < (byte_cnt >> 2); i++) {
-		//debug("Data Loop %d\n", i);
-		//debug("STA: %08x------------------\n",readl(&regs->sta));
-		while ((readl(&regs->sta) & status_bit) == 0) {
-			if (!timeout_usecs-- ){
-				ret = -ETIMEDOUT;
-				debug("TIMEOUT: ------------------\n");
-				goto out;
-			} else if ((readl(&regs->sta) & error_flags)) {
-				ret = -111;
-				debug("ERROR STA: %x------------------\n",readl(&regs->sta));
-				goto out;
-			}
-
-			udelay(1);
-			debug("Wait valid status bit transfer \n");
-			debug("STA: %08x------------------\n",readl(&regs->sta));
-		}
-		if (readl(&regs->sta) & error_flags) {
-			debug("ERROR STA: %x------------------\n",readl(&regs->sta));
-			ret = -113;
-			goto out;
-		}
-		//debug("Data Transfer now\n");
-		if (reading) {
-			buff[i] = readl(&regs->fifo[0]);
-			//debug("Read data %08x\n",buff[i]);
-			//debug("Read done\n");
-		}
-	}
 #endif
 out:
+	disable_dma(SDMMC1);
 	debug("END DATA TRANSFER\n");
-	debug("Ret: %d  -  STA  %08x\n\n", ret, readl(&regs->sta));
+	debug("Retstatus DATA TRANSFER: %d  -  STA  %08x\n", ret, readl(&regs->sta));
 	return ret;
 }
 
@@ -242,44 +167,28 @@ static int mmc_wait(struct udevice *dev, struct mmc_cmd *cmd, u8 response)
 		error_flags = STM32_SDIO_CTIMEOUT;
 	}
 	else{
-		status_flags = (STM32_SDIO_CMDREND | STM32_SDIO_RXFIFOHF );
+		status_flags = STM32_SDIO_CMDSENT;
 		error_flags = (STM32_SDIO_CCRCFAIL | STM32_SDIO_CTIMEOUT);
 	}
 
-	u32 status = readl(&regs->sta);
-
-	while (timeout > 0) {
-		timeout--;
-		status = readl(&regs->sta);
-		if (status & status_flags)
+	while ((readl(&regs->sta) & (status_flags | error_flags))) {
+		if(timeout--){
+			debug("CMD Timeout\n");
+			ret = -ETIMEDOUT;
 			goto out;
-		if (status & error_flags)
-			goto out;
-		//debug("Wait Status ok: %08x\n",status_flags);
-		//debug("Wait Status error: %08x \n",error_flags);
-		debug("Status Register %08x\n", status);
+		}
 		udelay(1);
 	}
 out:
 
-
-	if ((status & STM32_SDIO_CTIMEOUT))
+	/* Waiting for commands */
+	if (readl(&regs->sta) & STM32_SDIO_CTIMEOUT)
 		ret = -ETIMEDOUT;
-	if(status & STM32_SDIO_DCRCFAIL)
-	       ret = -111;
-	if(status & STM32_SDIO_DTIMEOUT)
-	       ret = -ETIMEDOUT;
+	if(readl(&regs->sta) & STM32_SDIO_CCRCFAIL && (cmd->resp_type & MMC_RSP_CRC))
+	       ret = -EILSEQ;
 
 
-	// disabled because of crc command problem cmd->resp_type & MMC_RSP_CRC
-	if ((status & STM32_SDIO_CCRCFAIL) != 0 && (cmd->resp_type & MMC_RSP_CRC) != 0)
-		debug("CRC_ERROR ---------------------------------------\n");
-
-//out:
-	debug("Status Register %08x\n", status);
-//	debug("Resp_CMD %x \n",readl(&regs->respcmd));
-//	debug("Resp_R1 %x \n",readl(&regs->resp1));
-	debug("Ret status %d\n",ret);
+	debug("Status Register %08x\n", readl(&regs->sta));
 	return ret;
 }
 
@@ -404,6 +313,12 @@ static int stm32_mmc_send_cmd(struct udevice *dev, struct mmc_cmd *cmd,
 	/*send command*/
 	writel(cmdval | cmd->cmdidx, &regs->cmd);
 
+	/* Wait for cmd response */
+	error = mmc_wait(dev,cmd,cmd->resp_type);
+	if (error)
+		goto out;
+
+	/* Read out data */
 	if (data) {
 
 		error = mmc_trans_data(dev, data,command);
@@ -411,18 +326,11 @@ static int stm32_mmc_send_cmd(struct udevice *dev, struct mmc_cmd *cmd,
 			goto out;
 		}
 	}
-	if(!data)
-		error = mmc_wait(dev,cmd,cmd->resp_type);
-	if (error)
-		goto out;
 
-	if (cmd->resp_type & MMC_RSP_BUSY) {
-
+	/* Read out Response */
+	if (cmd->resp_type & MMC_RSP_BUSY)
 		debug("RSP Busy\n");
-	}
-
 	if (cmd->resp_type & MMC_RSP_136) {
-
 		cmd->response[3] = readl(&regs->resp4);
 		cmd->response[2] = readl(&regs->resp3);
 		cmd->response[1] = readl(&regs->resp2);
@@ -434,11 +342,13 @@ static int stm32_mmc_send_cmd(struct udevice *dev, struct mmc_cmd *cmd,
 		cmd->response[0] = readl(&regs->resp1);
 		debug("mmc resp 0x%08x\n", cmd->response[0]);
 	}
-	debug("\n");
 
 out:
 	/* Clear all the static flags */
 	writel(0x000005FF, &regs->icr);
+
+	debug("Ret status %d\n\n", error);
+
 	return error;
 }
 
