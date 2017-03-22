@@ -116,3 +116,15 @@ int configure_dma(enum dma_function dma_function ,struct dma_config config){
 	return 0;
 
 }
+
+int disable_dma(enum dma_function dma_function){
+	switch(dma_function) {
+		case SDMMC1:
+			debug("Disable DMA\n");
+			writel(0, &STM32_DMA2->s3cr);
+			break;
+		default:
+			break;
+	}
+	return 0;
+}

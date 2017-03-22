@@ -236,4 +236,5 @@ int initialize_dma(enum dma_select dma);
 /* configures different dma_modes */
 int configure_dma(enum dma_function dma_function ,struct dma_config config);
 
+int disable_dma(enum dma_function dma_function);
 #endif
