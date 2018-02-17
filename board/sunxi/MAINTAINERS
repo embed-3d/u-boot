@@ -336,6 +336,11 @@ M:	Jagan Teki <jagan@amarulasolutions.com>
 S:	Maintained
 F:	configs/orangepi_prime_defconfig
 
+ORANGEPI ONE PLUS BOARD
+M:	Philipp Rossak <embed3d@gmail.com>
+S:	Maintained
+F:	configs/orangepi_one_plus_defconfig
+
 PINE64 BOARDS
 M:	Andre Przywara <andre.przywara@arm.com>
 S:	Maintained
